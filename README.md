@@ -71,20 +71,43 @@ cd /root/gsm8k-grpo-trainer
 uv venv --python 3.11 /root/gsm8k-grpo-trainer-venv
 # ② 激活
 source /root/gsm8k-grpo-trainer-venv/bin/activate
-# ③ 装 torch（直接指定阿里云 cu121 上的完整 wheel 文件 URL，不走 simple index 解析，100% 命中）
+# ③ 装 torch CUDA 版（直接给阿里云 cu121 上完整 wheel 文件 URL，不走 simple index 解析，100% 命中）
 uv pip install "https://mirrors.aliyun.com/pytorch-wheels/cu121/torch-2.4.0+cu121-cp311-cp311-linux_x86_64.whl"
-# ④ 装其他所有依赖（transformers / modelscope 等，从清华 PyPI 镜像下，同时注册 gsm8k-grpo-train 命令）
-uv sync --active
+# ④ 装 pyproject.toml 里声明的所有其他依赖 + 注册 gsm8k-grpo-train / gsm8k-grpo-eval 命令
+#    --no-upgrade：已经装好的 torch 2.4.0+cu121（CUDA 版）不要被 uv 想替换成 PyPI 上的 2.4.0（CPU 版）
+uv sync --active --no-upgrade
 ```
 
-> 说明：为什么第 ③ 步直接贴完整的 wheel URL？
-> - 当前机器 uv 版本比较老（0.12.10），配合 PyTorch CUDA 镜像使用 `--index-url` + `==2.4.0` / `==2.4.0+cu121` 匹配版本时有解析 bug，明明镜像目录里有文件却识别不到
-> - 直接把阿里云上**确认存在的那个 whl 文件完整 URL** 喂给 uv pip install，uv 就直接下载那个文件装上，不走任何「解析 simple index」「匹配版本范围」的流程，100% 成功
-> - 版本和平台都写死在文件名里了：`torch-2.4.0+cu121-cp311-cp311-linux_x86_64.whl` = PyTorch 2.4.0 + CUDA 12.1 + Python 3.11 + Linux x86_64，跟您的环境完全匹配
+> 说明：为什么 pyproject.toml 里写 `torch==2.4.0` 而不是 `==2.4.0+cu121`？
+> - PyPI（以及清华镜像）上只有 `torch==2.4.0`（CPU 版），PyTorch 官方把带 CUDA 后缀的 `+cu121` 版本都放在自己的 `download.pytorch.org/whl/cu121` 独立镜像里，不在 PyPI 发布
+> - 所以 pyproject.toml 里写 `==2.4.0` 让 uv sync 解析依赖时能在清华 PyPI 上正常「搜到」torch 这个包的主版本；而第 ③ 步我们已经先手动把 CUDA 版 `2.4.0+cu121` 装到 venv 里了，uv 会认为「已装的 `2.4.0+cu121` 满足 `==2.4.0` 约束」，就不会真的重新下载 CPU 版
+> - 如果第 ③ 步没跑过、torch 还没装过，uv sync 会尝试去清华 PyPI 拿 CPU 版 `2.4.0`，这时候一定要中断，先执行第 ③ 步再跑 ④
 
 > 镜像加速：
 > - 第 ③ 步 torch → 阿里云 pytorch cu121 国内镜像（已验证有包，速度快）
 > - 第 ④ 步其他包 → 清华 PyPI 国内镜像
+
+> 重要提醒（今天踩过的坑）：
+> - 如果 uv sync 输出类似 `- torch==2.4.0+cu121 ... + tqdm==x.x.x` 这种「减号 torch」的 diff 信息，然后您跑验证时真的报 `ModuleNotFoundError: No module named 'torch'` → 说明 uv 意外把 torch 卸掉了，**立刻重新执行第 ③ 步重装**就行，后面再跑 uv sync --no-upgrade 就不会再碰了
+
+**✅ 装完后建议验证（确认 torch CUDA 版装对了）：**
+
+```bash
+python -c "import torch, transformers, modelscope, dotenv; print('torch版本:', torch.__version__); print('CUDA可用:', torch.cuda.is_available()); print('CUDA版本:', torch.version.cuda if torch.cuda.is_available() else 'N/A'); print('其余依赖 OK')"
+# 如果 modelscope --version 报 No module named 'pkg_resources'，先跑：uv pip install setuptools
+modelscope --version
+which gsm8k-grpo-train
+```
+
+正常输出类似：
+```
+torch版本: 2.4.0+cu121
+CUDA可用: True
+CUDA版本: 12.1
+其余依赖 OK
+modelscope version 1.18.0
+/root/gsm8k-grpo-trainer-venv/bin/gsm8k-grpo-train
+```
 
 ### 1.3 虚拟环境常用命令
 

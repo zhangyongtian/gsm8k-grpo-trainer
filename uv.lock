@@ -144,9 +144,9 @@ name = "gsm8k-grpo-trainer"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "modelscope" },
     { name = "numpy" },
     { name = "python-dotenv" },
+    { name = "setuptools" },
     { name = "tensorboard" },
     { name = "tokenizers" },
     { name = "torch" },
@@ -155,9 +155,9 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "modelscope", specifier = "==1.18.0" },
     { name = "numpy", specifier = "==1.26.4" },
     { name = "python-dotenv", specifier = "==1.0.1" },
+    { name = "setuptools", specifier = ">=68.0.0" },
     { name = "tensorboard", specifier = "==2.17.0" },
     { name = "tokenizers", specifier = "==0.19.1" },
     { name = "torch", specifier = "==2.4.0" },
@@ -257,20 +257,6 @@ wheels = [
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/0f/62/d9c46a7f5c9adbeeeda52f5b8d802e1094e9717705a645efc71b0913a0a8/markupsafe-3.0.3-cp311-cp311-win32.whl", hash = "sha256:0db14f5dafddbb6d9208827849fad01f1a2609380add406671a26386cdf15a19", size = 14572, upload-time = "2025-09-27T18:36:28.045Z" },
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/83/8a/4414c03d3f891739326e1783338e48fb49781cc915b2e0ee052aa490d586/markupsafe-3.0.3-cp311-cp311-win_amd64.whl", hash = "sha256:de8a88e63464af587c950061a5e6a67d3632e36df62b986892331d4620a35c01", size = 15077, upload-time = "2025-09-27T18:36:29.025Z" },
     { url = "https://pypi.tuna.tsinghua.edu.cn/packages/35/73/893072b42e6862f319b5207adc9ae06070f095b358655f077f69a35601f0/markupsafe-3.0.3-cp311-cp311-win_arm64.whl", hash = "sha256:3b562dd9e9ea93f13d53989d23a7e775fdfd1066c33494ff43f5418bc8c58a5c", size = 13876, upload-time = "2025-09-27T18:36:29.954Z" },
-]
-
-[[package]]
-name = "modelscope"
-version = "1.18.0"
-source = { registry = "https://pypi.tuna.tsinghua.edu.cn/simple" }
-dependencies = [
-    { name = "requests" },
-    { name = "tqdm" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://pypi.tuna.tsinghua.edu.cn/packages/8e/1b/1ef494de3c12e854bb9b8362f4c4e925fd3be99fc7ff93fbafeee5885465/modelscope-1.18.0.tar.gz", hash = "sha256:85c1c637c825924b98f85bf0eaf9636b8770e35fd95cb87b6e60cc2733aeff4c", size = 4272340, upload-time = "2024-09-05T06:27:58.754Z" }
-wheels = [
-    { url = "https://pypi.tuna.tsinghua.edu.cn/packages/58/bd/963488515859b641a2aa525ed20282e914dd4d3dc9471002f11b94e4a016/modelscope-1.18.0-py3-none-any.whl", hash = "sha256:988c9b853d6c4ce83946b69c0a5395e4e678fbeef7c2cc211039e6d2a2a33eb6", size = 5721806, upload-time = "2024-09-05T06:27:56.121Z" },
 ]
 
 [[package]]
