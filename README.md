@@ -10,7 +10,7 @@
 - **Qwen2.5 基座**：默认加载本地 `./Qwen2.5-1.5B-Instruct/`（3B 同目录结构也可直接手动替换路径）
 - **多维度奖励**：格式奖励 + 答案准确率奖励的组合奖励机制
 - **TensorBoard 可视化**：训练指标、评估准确率、满分轨迹实时记录
-- **配置文件驱动**：显存相关超参数通过根目录 `.env` 配置，默认值适配 24GB 显卡
+- **配置文件驱动**：基座模型路径通过 `.env` 配置，其余超参数写在 `train.py` 顶部方便直改
 
 ## 项目结构
 
@@ -133,26 +133,26 @@ rm -rf /root/gsm8k-grpo-trainer-venv
 
 ---
 
-## 2. 超参数配置（.env）
+## 2. 模型路径配置（.env）
 
-项目已自带 `.env` 文件（24GB 显卡 + 1.5B 模型默认安全值），一般不用改：
+`.env` 只做一件事：配置基座模型目录。内容非常简单（项目已自带）：
 
 ```dotenv
-NUM_QUESTIONS_PER_BATCH=4   # 每轮 rollout 采样的问题数量
-NUM_ANSWERS_PER_QUESTION=4  # 每个问题采样的回答条数（GRPO 组大小）
-MICRO_BATCH_SIZE=1          # 策略梯度的微批次大小（越小越省显存）
-LR=1e-5                     # 学习率
+PRETRAINED_MODEL_PATH=./Qwen2.5-1.5B-Instruct/
 ```
 
-只有在 OOM（显存不够）时按下面顺序调小：
+切到 3B 模型时直接改这一行即可：
+```dotenv
+PRETRAINED_MODEL_PATH=./Qwen2.5-3B-Instruct/
+```
 
-| 顺序 | 改什么 | 说明 |
-|------|--------|------|
-| ① | `NUM_ANSWERS_PER_QUESTION` | 每题回答数，对显存影响最大 |
-| ② | `NUM_QUESTIONS_PER_BATCH` | 一次处理多少问题 |
-| ③ | `MICRO_BATCH_SIZE` | 梯度小 batch，1 是最省显存 |
-
-> 说明：当前版本中模型路径 `./Qwen2.5-1.5B-Instruct/`、评估频率（每 10 步）、保存频率（每 100 步）、测试集大小（128 条）写在 `train.py` 中，不再通过 `.env` 配置，避免过度复杂化。
+> 其他超参数（batch 大小、学习率、评估/保存频率等）为了避免配置过度复杂化，全部写死在 `train.py` 顶部。
+> 出现 CUDA OOM 需要缩显存时，直接在 [train.py#L69-L72](file:///root/gsm8k-grpo-trainer/train.py#L69-L72) 按以下顺序改常量：
+> | 顺序 | 改什么 | 说明 |
+> |------|--------|------|
+> | ① | `NUM_ANSWERS_PER_QUESTION`（默认 4） | 每题回答数，对显存影响最大 |
+> | ② | `NUM_QUESTIONS_PER_BATCH`（默认 4） | 一次处理多少问题 |
+> | ③ | `MICRO_BATCH_SIZE`（默认 1） | 梯度微批次，1 最省显存 |
 
 ---
 
@@ -198,7 +198,8 @@ python train.py
 
 ### 4.2 常见报错：CUDA OOM
 
-按 `.env` 章节说明依次减小 `NUM_ANSWERS_PER_QUESTION` → `NUM_QUESTIONS_PER_BATCH` → `MICRO_BATCH_SIZE`。环境变量 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` 已在 `train.py` 内默认设置，减少显存碎片。
+直接编辑 [train.py#L69-L72](file:///root/gsm8k-grpo-trainer/train.py#L69-L72)，依次减小 `NUM_ANSWERS_PER_QUESTION` → `NUM_QUESTIONS_PER_BATCH` → `MICRO_BATCH_SIZE` 三个常量。
+环境变量 `PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` 已在 `train.py` 内默认设置，减少显存碎片。
 
 ### 4.3 查看 TensorBoard 训练日志
 

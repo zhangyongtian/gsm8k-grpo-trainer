@@ -10,8 +10,7 @@ dependencies = [
     "numpy==1.26.4",
     "tensorboard==2.17.0",
     "python-dotenv==1.0.1",
-    "setuptools>=68.0.0",
-    "modelscope==1.16.0",
+    "setuptools>=68.0.0"
 ]
 
 [build-system]

@@ -59,15 +59,17 @@ def evaluate(model, tokenizer, device):
 
 
 def main():
-    pretrained_model_path = Path("./Qwen2.5-1.5B-Instruct/")
+    pretrained_model_path = Path(
+        os.getenv("PRETRAINED_MODEL_PATH", "./Qwen2.5-1.5B-Instruct/")
+    )
     device = torch.device("cuda")
     dtype = torch.bfloat16
     os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     torch.random.manual_seed(1337)
-    NUM_QUESTIONS_PER_BATCH = int(os.getenv("NUM_QUESTIONS_PER_BATCH", "4"))
-    NUM_ANSWERS_PER_QUESTION = int(os.getenv("NUM_ANSWERS_PER_QUESTION", "4"))
-    MICRO_BATCH_SIZE = int(os.getenv("MICRO_BATCH_SIZE", "1"))
-    LR = float(os.getenv("LR", "1e-5"))
+    NUM_QUESTIONS_PER_BATCH = 4
+    NUM_ANSWERS_PER_QUESTION = 4
+    MICRO_BATCH_SIZE = 1
+    LR = 1e-5
 
     current_time = datetime.now().strftime(r"%Y%m%d-%H%M%S")
     tb_writer = SummaryWriter(log_dir=f"./logs/{current_time}")
