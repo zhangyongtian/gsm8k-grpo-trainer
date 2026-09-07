@@ -225,6 +225,20 @@ gsm8k-grpo-train
 - 每 10 步会在测试集上评估一次准确率
 - 每 100 步自动保存一次模型权重到 `ckpt/ckpt_XXXXXX.pt`（只存 model.state_dict，文件更小）
 
+### 4.1.1 常见报错：CUDA OOM（显存不够用）
+
+如果启动训练后报 `torch.OutOfMemoryError: CUDA out of memory`，按照下面**从上到下的顺序慢慢调小 `.env` 里的参数**，每次改完重新启动训练：
+
+| 顺序 | 改什么 | 推荐值（24G 显卡） | 说明 |
+|------|--------|------------------|------|
+| ① | `NUM_ANSWERS_PER_QUESTION` | 从 8 → 4 → 2 | 每题生成的答案数，对显存影响最大（每多一个回答，就多一条完整生成轨迹）|
+| ② | `NUM_QUESTIONS_PER_BATCH` | 从 32 → 8 → 4 | 一次处理多少道题 |
+| ③ | `MICRO_BATCH_SIZE` | 从 4 → 2 → 1 | 反向传播的小 batch，越大越吃显存 |
+| ④ | `PRETRAINED_MODEL_PATH` | 从 Qwen2.5-3B → 切回 Qwen2.5-1.5B | 3B 模型本身显存占用就比 1.5B 大 ~1 倍 |
+| 兜底 | 启动前先执行环境变量 | `export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True` | 可以显著减少显存碎片浪费，24G 级别的卡通常能再多挤出 1~3 GiB |
+
+另外 `.env` 里**已经预置了「24G 显卡 + Qwen2.5-1.5B」安全的推荐值**（`NUM_QUESTIONS_PER_BATCH=4`、`NUM_ANSWERS_PER_QUESTION=4`、`MICRO_BATCH_SIZE=1`），如果您是 24G 显卡直接跑就行，不用再手调。
+
 ### 4.2 查看训练日志
 
 ```bash

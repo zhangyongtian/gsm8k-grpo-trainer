@@ -119,8 +119,7 @@ def main():
     )
     model = AutoModelForCausalLM.from_pretrained(
         str(pretrained_model_path),
-        dtype=dtype,
-    ).train()
+    ).to(device=device, dtype=dtype).train()
 
     optimizer = torch.optim.AdamW(
         model.parameters(),

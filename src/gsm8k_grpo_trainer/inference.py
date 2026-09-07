@@ -34,7 +34,7 @@ def main():
     print(f"训练权重: {ckpt_path if (ckpt_path and ckpt_path.exists()) else '(使用基座原始权重)'}")
 
     tokenizer = AutoTokenizer.from_pretrained(str(model_dir))
-    model = AutoModelForCausalLM.from_pretrained(str(model_dir), dtype=dtype).to(device).eval()
+    model = AutoModelForCausalLM.from_pretrained(str(model_dir)).to(device=device, dtype=dtype).eval()
 
     if ckpt_path and ckpt_path.exists():
         ckpt = torch.load(ckpt_path, map_location=device)

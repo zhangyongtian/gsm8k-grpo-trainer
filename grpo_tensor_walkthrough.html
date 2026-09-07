@@ -1,0 +1,718 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GRPO 张量流转逐行讲解</title>
+  <style>
+    :root {
+      --ink: #17202a;
+      --muted: #65717d;
+      --line: #d8dee4;
+      --paper: #ffffff;
+      --canvas: #f4f6f7;
+      --code: #18232d;
+      --prompt: #dceeff;
+      --prompt-ink: #155a86;
+      --generated: #dff4e4;
+      --generated-ink: #216438;
+      --eos: #ffe2a8;
+      --eos-ink: #815100;
+      --pad: #eaedf0;
+      --pad-ink: #7c858d;
+      --mask: #d9ccf5;
+      --mask-ink: #53398b;
+      --danger: #c93d34;
+      --accent: #087e8b;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--canvas);
+      font-family: Inter, "Noto Sans SC", "Microsoft YaHei", system-ui, sans-serif;
+      line-height: 1.65;
+      letter-spacing: 0;
+    }
+    code, pre, .mono { font-family: "JetBrains Mono", "SFMono-Regular", Consolas, monospace; }
+    a { color: inherit; }
+
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 20;
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+      padding: 10px max(20px, calc((100vw - 1320px) / 2));
+      background: rgba(255,255,255,.96);
+      border-bottom: 1px solid var(--line);
+    }
+    .brand { font-weight: 800; font-size: 16px; white-space: nowrap; }
+    .nav { display: flex; gap: 4px; overflow-x: auto; }
+    .nav a { padding: 7px 10px; color: var(--muted); text-decoration: none; font-size: 13px; white-space: nowrap; }
+    .nav a:hover { color: var(--ink); background: #eef2f3; }
+
+    main { max-width: 1320px; margin: 0 auto; padding: 38px 24px 80px; }
+    .intro {
+      display: grid;
+      grid-template-columns: minmax(0, 1.5fr) minmax(280px, .7fr);
+      gap: 36px;
+      align-items: end;
+      padding: 8px 0 34px;
+      border-bottom: 3px solid var(--ink);
+    }
+    h1 { margin: 0 0 12px; font-size: clamp(30px, 5vw, 58px); line-height: 1.05; letter-spacing: 0; }
+    .lead { max-width: 760px; margin: 0; color: #46515b; font-size: 17px; }
+    .meta { border-left: 3px solid var(--accent); padding-left: 18px; color: var(--muted); font-size: 13px; }
+    .meta strong { display: block; color: var(--ink); font-size: 14px; }
+
+    section { padding: 38px 0; border-bottom: 1px solid var(--line); }
+    h2 { margin: 0 0 8px; font-size: 28px; line-height: 1.2; letter-spacing: 0; }
+    h3 { margin: 0 0 12px; font-size: 18px; letter-spacing: 0; }
+    p { margin: 8px 0; }
+    .section-note { margin: 0 0 24px; color: var(--muted); max-width: 900px; }
+
+    .legend { display: flex; flex-wrap: wrap; gap: 8px 18px; margin: 22px 0; }
+    .legend span { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--muted); }
+    .swatch { width: 18px; height: 18px; border: 1px solid rgba(0,0,0,.12); }
+
+    .two-col { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+    .summary-strip { display: grid; grid-template-columns: repeat(5, 1fr); border: 1px solid var(--line); background: var(--paper); }
+    .summary-strip > div { min-width: 0; padding: 14px 16px; border-right: 1px solid var(--line); }
+    .summary-strip > div:last-child { border-right: 0; }
+    .summary-strip small { display: block; color: var(--muted); }
+    .summary-strip strong { font-size: 20px; }
+
+    .panel { background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 20px; }
+    .callout { border-left: 4px solid var(--accent); background: #eaf6f6; padding: 14px 16px; margin: 18px 0; }
+    .callout.warning { border-left-color: var(--danger); background: #fff0ee; }
+    .callout strong { display: block; margin-bottom: 3px; }
+
+    .code-line {
+      display: grid;
+      grid-template-columns: minmax(330px, .9fr) minmax(520px, 1.35fr);
+      gap: 0;
+      margin: 14px 0;
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .source { min-width: 0; padding: 16px; background: var(--code); color: #edf4f6; }
+    .source .ln { display: inline-block; width: 38px; color: #7e929f; user-select: none; }
+    .source pre { margin: 0; overflow-x: auto; white-space: pre-wrap; font-size: 13px; line-height: 1.7; }
+    .explain { min-width: 0; padding: 16px 18px; }
+    .explain > p:first-child { margin-top: 0; }
+    .shape { display: inline-block; padding: 2px 7px; color: #33424c; background: #eef2f3; border: 1px solid #d7dfe2; font: 12px/1.5 "JetBrains Mono", monospace; }
+
+    .tensor-wrap { overflow-x: auto; margin: 10px 0 2px; }
+    .tensor { border-collapse: separate; border-spacing: 3px; white-space: nowrap; font: 12px/1.2 "JetBrains Mono", monospace; }
+    .tensor th { padding: 5px 7px; color: var(--muted); font-weight: 600; text-align: center; }
+    .tensor th.row { position: sticky; left: 0; z-index: 2; min-width: 74px; text-align: right; background: var(--paper); }
+    .tensor td { min-width: 43px; height: 34px; padding: 5px; text-align: center; border: 1px solid rgba(0,0,0,.1); }
+    .p { background: var(--prompt); color: var(--prompt-ink); }
+    .g { background: var(--generated); color: var(--generated-ink); }
+    .e { background: var(--eos); color: var(--eos-ink); font-weight: 800; }
+    .d { background: var(--pad); color: var(--pad-ink); }
+    .m { background: var(--mask); color: var(--mask-ink); font-weight: 800; }
+    .off { background: #f4f5f6; color: #9aa1a7; }
+    .hot { outline: 3px solid var(--danger); outline-offset: -2px; }
+
+    .flow { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 8px 0; }
+    .flow-item { min-width: 155px; padding: 12px; background: var(--paper); border: 1px solid var(--line); text-align: center; }
+    .flow-item b { display: block; }
+    .arrow { display: grid; place-items: center; min-width: 42px; color: var(--accent); font-size: 22px; }
+
+    details { margin: 10px 0; border: 1px solid var(--line); background: var(--paper); }
+    summary { cursor: pointer; padding: 14px 16px; font-weight: 750; }
+    details[open] summary { border-bottom: 1px solid var(--line); }
+    .detail-body { padding: 6px 16px 16px; }
+
+    .formula { overflow-x: auto; padding: 13px 15px; background: #f0f4f5; border-left: 3px solid #4b6570; font: 14px/1.7 "JetBrains Mono", monospace; }
+    .iteration-title { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+    .iteration-title span { color: var(--muted); font-size: 13px; }
+
+    .footer { padding-top: 28px; color: var(--muted); font-size: 13px; }
+    @media (max-width: 900px) {
+      .intro, .two-col, .code-line { grid-template-columns: 1fr; }
+      .summary-strip { grid-template-columns: repeat(2, 1fr); }
+      .summary-strip > div { border-bottom: 1px solid var(--line); }
+      .source { border-bottom: 1px solid #32424d; }
+      .topbar { align-items: flex-start; flex-direction: column; gap: 4px; }
+      main { padding: 24px 14px 60px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">GRPO / Tensor Walkthrough</div>
+    <nav class="nav" aria-label="页面导航">
+      <a href="#setup">示例设定</a>
+      <a href="#rollout-init">Rollout 初始化</a>
+      <a href="#decode">并行生成</a>
+      <a href="#episodes">Episode</a>
+      <a href="#advantages">优势</a>
+      <a href="#update">Update policy</a>
+      <a href="#gradient">梯度更新</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="intro">
+      <div>
+        <h1>rollout 与 update_policy<br>张量流转全图</h1>
+        <p class="lead">严格对应当前 <span class="mono">grpo.py</span>。2 个问题，每题 2 个回答；prompt 长度不同，4 条回答也在不同时刻生成 EOS。</p>
+      </div>
+      <div class="meta">
+        <strong>示例规模</strong>
+        <span class="mono">N=2, G=2, bsz=4, max_gen_len=4</span><br>
+        <strong>训练微批次</strong>
+        <span class="mono">micro_batch_size=2, vocab_size=V</span>
+      </div>
+    </div>
+
+    <section id="setup">
+      <h2>0. 示例设定</h2>
+      <p class="section-note">符号 token 只为了展示。<span class="mono">E</span> 表示 EOS，<span class="mono">·</span> 表示 PAD。Q1 的 prompt 末尾本身就有 EOS，这正好说明为什么必须区分“prompt 中的 EOS”与“生成的 EOS”。</p>
+      <div class="legend">
+        <span><i class="swatch p"></i>prompt token</span>
+        <span><i class="swatch g"></i>生成 token</span>
+        <span><i class="swatch e"></i>EOS / end token</span>
+        <span><i class="swatch d"></i>PAD</span>
+        <span><i class="swatch m"></i>mask=True / 1</span>
+      </div>
+      <div class="two-col">
+        <div class="panel">
+          <h3>MiniBatch</h3>
+          <div class="formula">batch.prompt_token_ids = [<br>&nbsp;&nbsp;[P0, P1, P2],&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;# Q0, len=3<br>&nbsp;&nbsp;[Q0, Q1, Q2, Q3, E] # Q1, len=5<br>]</div>
+          <p>Q0 可以看成目标 6 的题，Q1 可以看成目标 10 的题。文本内容不影响张量流转。</p>
+        </div>
+        <div class="panel">
+          <h3>预设的采样结果</h3>
+          <div class="formula">Q0-A → [a, E]             # cur_pos=4 结束<br>Q0-B → [b, c, d, e, E]    # cur_pos=7 结束<br>Q1-A → [u, E]             # cur_pos=6 结束<br>Q1-B → [v, w, x, E]       # cur_pos=8 结束</div>
+          <p>注意 Q0-B 实际得到 5 个 token，这是当前代码用最长 prompt 计算 <span class="mono">total_len</span> 的结果。</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="rollout-init">
+      <h2>1. rollout：从 MiniBatch 到 4 条轨迹</h2>
+      <p class="section-note">下面每个左侧代码块对应右侧的张量变化。形状中 <span class="mono">V</span> 是词表大小。</p>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">22</span>@torch.no_grad()
+<span class="ln">23</span>def rollout(...):</pre></div>
+        <div class="explain"><p>整个采样过程不构建反向传播图。模型只用来产生回答，梯度将在 <span class="mono">update_policy</span> 里重新前向时计算。</p></div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">32</span>end_token = tokenizer.eos_token
+<span class="ln">33</span>end_token_id = tokenizer.eos_token_id
+<span class="ln">34</span>pad_token_id = tokenizer.pad_token_id
+<span class="ln">36</span>prompt_token_ids = batch.prompt_token_ids</pre></div>
+        <div class="explain"><p>为示例绑定 <span class="shape">EOS=E</span> 和 <span class="shape">PAD=·</span>。<span class="mono">prompt_token_ids</span> 是两个不等长 Python 列表，此时还不是矩形张量。</p></div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">38</span>bsz = len(batch.prompt) * num_answer_per_question
+<span class="ln">40</span>min_prompt_len = min(len(t) for t in prompt_token_ids)
+<span class="ln">42</span>max_prompt_len = max(len(t) for t in prompt_token_ids)
+<span class="ln">44</span>total_len = max_gen_len + max_prompt_len</pre></div>
+        <div class="explain">
+          <div class="summary-strip">
+            <div><small>问题数 N</small><strong>2</strong></div>
+            <div><small>每题回答 G</small><strong>2</strong></div>
+            <div><small>bsz=N×G</small><strong>4</strong></div>
+            <div><small>min / max prompt</small><strong>3 / 5</strong></div>
+            <div><small>total_len=5+4</small><strong>9</strong></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">46</span>tokens = torch.full(
+<span class="ln">47</span>    (bsz, total_len),
+<span class="ln">48</span>    pad_token_id,
+<span class="ln">49</span>    dtype=torch.long,
+<span class="ln">50</span>    device=device
+<span class="ln">51</span>)</pre></div>
+        <div class="explain"><p>先在 GPU 上建立 <span class="shape">tokens: Long[4, 9]</span>，全部填 PAD。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">row</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+            <tr><th class="row">Q0-A</th><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q0-B</th><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-A</th><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-B</th><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">55</span>for k, t in enumerate(prompt_token_ids):
+<span class="ln">57</span>    offset = k * num_answer_per_question
+<span class="ln">58</span>    for i in range(num_answer_per_question):
+<span class="ln">60</span>        tokens[offset+i, :len(t)] = torch.tensor(t, ...)</pre></div>
+        <div class="explain"><p><span class="mono">offset</span> 把每个问题复制 G=2 次。Q0 写入行 0,1；Q1 写入行 2,3。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">tokens[4,9]</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+            <tr><th class="row">Q0-A</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q0-B</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-A</th><td class="p">Q0</td><td class="p">Q1</td><td class="p">Q2</td><td class="p">Q3</td><td class="e">E</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-B</th><td class="p">Q0</td><td class="p">Q1</td><td class="p">Q2</td><td class="p">Q3</td><td class="e">E</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+          </table></div>
+        </div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">64</span>prev_pos = 0
+<span class="ln">65</span>past_key_values = None
+<span class="ln">67</span>input_text_mask = tokens != pad_token_id
+<span class="ln">69</span>assert min_prompt_len &lt; total_len
+<span class="ln">71</span>is_finished = torch.zeros((bsz,), dtype=torch.bool, ...)</pre></div>
+        <div class="explain"><p><span class="shape">input_text_mask: Bool[4,9]</span> 是初始 prompt 地图，后面写入生成 token 时它不会变。<span class="shape">is_finished: Bool[4]</span> 初始全 False。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">mask</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+            <tr><th class="row">Q0-A</th><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td></tr>
+            <tr><th class="row">Q0-B</th><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td></tr>
+            <tr><th class="row">Q1-A</th><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td></tr>
+            <tr><th class="row">Q1-B</th><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td></tr>
+          </table></div>
+          <p class="mono">prev_pos=0, past_key_values=None, is_finished=[F,F,F,F]</p>
+        </div>
+      </div>
+    </section>
+
+    <section id="decode">
+      <h2>2. rollout：并行自回归生成</h2>
+      <p class="section-note">循环从 <span class="mono">cur_pos=3</span> 到 8。每一轮都执行同样的代码，先看一次通用张量管线，再展开 6 个时刻。</p>
+
+      <div class="flow">
+        <div class="flow-item"><b>current_tokens</b><span class="mono">[4, S_new]</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>model + KV cache</b><span class="mono">logits [4,S_new,V]</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>softmax</b><span class="mono">probs [4,V]</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>multinomial</b><span class="mono">next [4,1] → [4]</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>where × 2</b><span class="mono">prompt / finished</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>write</b><span class="mono">tokens[:,cur_pos]</span></div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">74</span>for cur_pos in range(min_prompt_len, total_len):
+<span class="ln">80</span>    current_tokens = tokens[:, prev_pos:cur_pos]
+<span class="ln">81</span>    attention_mask = tokens[:, :cur_pos] != pad_token_id</pre></div>
+        <div class="explain"><p>首轮输入位置 <span class="mono">[0:3]</span>，shape 为 <span class="shape">[4,3]</span>。之后 KV cache 已保存历史，每轮只输入上一个 token，shape 为 <span class="shape">[4,1]</span>。attention mask 始终覆盖完整历史 <span class="shape">[4,cur_pos]</span>。</p></div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">82</span>with torch.inference_mode():
+<span class="ln">83</span>    outputs = model(
+<span class="ln">84</span>        input_ids=current_tokens,
+<span class="ln">85</span>        attention_mask=attention_mask,
+<span class="ln">86</span>        past_key_values=past_key_values,
+<span class="ln">87</span>        use_cache=True)
+<span class="ln">89</span>    logits = outputs.logits
+<span class="ln">90</span>    past_key_values = outputs.past_key_values</pre></div>
+        <div class="explain"><p>首轮 <span class="shape">logits [4,3,V]</span>，后续通常为 <span class="shape">[4,1,V]</span>。只使用最后一个时刻预测下一 token。KV cache 把已计算的 K/V 保存下来，避免每次重算整个前缀。</p></div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">92</span>probs = torch.softmax(logits[:, -1], dim=-1)
+<span class="ln">94</span>next_token = torch.multinomial(probs, num_samples=1)
+<span class="ln">95</span>next_token = next_token.squeeze(-1)</pre></div>
+        <div class="explain"><p><span class="shape">logits[:,-1] [4,V]</span> → <span class="shape">probs [4,V]</span> → <span class="shape">sample [4,1]</span> → <span class="shape">next_token [4]</span>。四行各从自己的词表分布采样一次。</p></div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">99</span>next_token = torch.where(
+<span class="ln">100</span>    input_text_mask[:, cur_pos],
+<span class="ln">101</span>    tokens[:, cur_pos],
+<span class="ln">102</span>    next_token)</pre></div>
+        <div class="explain"><p>第一次 where：若当前位置原本属于长 prompt，就丢弃模型采样，强制使用 prompt 原 token。否则接受采样。</p>
+          <div class="formula">cur_pos=4 时：<br>condition = [0, 0, 1, 1]<br>sampled   = [E, c, ?, ?]<br>existing  = [·, ·, E, E]<br>result    = [E, c, E, E]</div>
+        </div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">106</span>next_token = torch.where(
+<span class="ln">107</span>    is_finished,
+<span class="ln">108</span>    pad_token_id,
+<span class="ln">109</span>    next_token)
+<span class="ln">112</span>tokens[:, cur_pos] = next_token</pre></div>
+        <div class="explain"><p>第二次 where：已经结束的行后续只写 PAD，未结束行写入上一步结果。这保证早结束回答不会继续产生文本。</p></div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">114</span>if end_token_id is not None:
+<span class="ln">116</span>    is_end_token = next_token == end_token_id
+<span class="ln">119</span>    is_generated_token = ~input_text_mask[:, cur_pos]
+<span class="ln">121</span>    is_finished = is_finished | (
+<span class="ln">122</span>        is_end_token &amp; is_generated_token)
+<span class="ln">123</span>prev_pos = cur_pos
+<span class="ln">125</span>if is_finished.all(): break</pre></div>
+        <div class="explain"><p>只有“是 EOS”且“该位置是生成区”才结束。<span class="mono">is_finished</span> 用 OR 累积，一旦为 True 不会再变回 False。</p></div>
+      </div>
+
+      <details open>
+        <summary>cur_pos=3：Q0 开始生成，Q1 仍在读 prompt</summary>
+        <div class="detail-body">
+          <div class="iteration-title"><h3>写入 [a, b, Q3, Q3]</h3><span>prev_pos: 0 → 3</span></div>
+          <p><span class="mono">input_text_mask[:,3]=[0,0,1,1]</span>，所以 Q1 的两行强制拷贝 Q3。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">tokens</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+            <tr><th class="row">Q0-A</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="g hot">a</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q0-B</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="g hot">b</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-A</th><td class="p">Q0</td><td class="p">Q1</td><td class="p">Q2</td><td class="p hot">Q3</td><td class="e">E</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-B</th><td class="p">Q0</td><td class="p">Q1</td><td class="p">Q2</td><td class="p hot">Q3</td><td class="e">E</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr></table></div>
+          <p class="mono">is_end=[F,F,F,F], is_generated=[T,T,F,F], is_finished=[F,F,F,F]</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>cur_pos=4：生成 EOS 与 prompt EOS 同时出现</summary>
+        <div class="detail-body">
+          <div class="iteration-title"><h3>写入 [E, c, E, E]</h3><span>prev_pos: 3 → 4</span></div>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">row</th><th>next</th><th>is_end</th><th>is_generated</th><th>end &amp; generated</th><th>is_finished</th></tr>
+            <tr><th class="row">Q0-A</th><td class="e">E</td><td class="m">T</td><td class="m">T</td><td class="m">T</td><td class="m">T</td></tr>
+            <tr><th class="row">Q0-B</th><td class="g">c</td><td class="off">F</td><td class="m">T</td><td class="off">F</td><td class="off">F</td></tr>
+            <tr><th class="row">Q1-A</th><td class="e">E</td><td class="m">T</td><td class="off">F</td><td class="off">F</td><td class="off">F</td></tr>
+            <tr><th class="row">Q1-B</th><td class="e">E</td><td class="m">T</td><td class="off">F</td><td class="off">F</td><td class="off">F</td></tr></table></div>
+          <div class="callout"><strong>关键点</strong>Q1-A/B 看到的 E 是 prompt 末尾，不能标记回答结束。只有 Q0-A 的 E 是模型生成的。</div>
+        </div>
+      </details>
+
+      <details>
+        <summary>cur_pos=5：Q0-A 开始补 PAD，Q1 开始生成</summary>
+        <div class="detail-body"><p>第二个 <span class="mono">torch.where</span> 将 Q0-A 强制为 PAD；其他行写入 <span class="mono">[d,u,v]</span>。</p><div class="formula">next_token before finished-where = [?, d, u, v]<br>is_finished                    = [T, F, F, F]<br>next_token after finished-where  = [·, d, u, v]</div></div>
+      </details>
+      <details>
+        <summary>cur_pos=6：Q1-A 生成 EOS</summary>
+        <div class="detail-body"><div class="formula">write       = [·, e, E, w]<br>generated?  = [T, T, T, T]<br>finished    = [T, F, T, F]</div></div>
+      </details>
+      <details>
+        <summary>cur_pos=7：Q0-B 生成 EOS</summary>
+        <div class="detail-body"><div class="formula">write       = [·, E, ·, x]<br>finished    = [T, T, T, F]</div></div>
+      </details>
+      <details open>
+        <summary>cur_pos=8：Q1-B 生成 EOS，全部结束</summary>
+        <div class="detail-body">
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">final tokens</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+            <tr><th class="row">Q0-A</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="g">a</td><td class="e">E</td><td class="d">·</td><td class="d">·</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q0-B</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="g">b</td><td class="g">c</td><td class="g">d</td><td class="g">e</td><td class="e">E</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-A</th><td class="p">Q0</td><td class="p">Q1</td><td class="p">Q2</td><td class="p">Q3</td><td class="e">E</td><td class="g">u</td><td class="e">E</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-B</th><td class="p">Q0</td><td class="p">Q1</td><td class="p">Q2</td><td class="p">Q3</td><td class="e">E</td><td class="g">v</td><td class="g">w</td><td class="g">x</td><td class="e hot">E</td></tr></table></div>
+          <p class="mono">is_finished=[T,T,T,T] → is_finished.all() == True → break</p>
+        </div>
+      </details>
+    </section>
+
+    <section id="episodes">
+      <h2>3. rollout：张量拆回 Episode</h2>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">128</span>gc.collect()
+<span class="ln">130</span>torch.cuda.empty_cache()
+<span class="ln">131</span>is_finished_list = is_finished.tolist()
+<span class="ln">132</span>tokens_list = tokens.tolist()
+<span class="ln">135</span>episodes = []</pre></div>
+        <div class="explain"><p>将后面要组装的数据转回 Python list。<span class="mono">episodes</span> 将按 Q0-A, Q0-B, Q1-A, Q1-B 顺序追加。</p></div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">137</span>for i in range(bsz // num_answer_per_question):
+<span class="ln">139</span>    for j in range(num_answer_per_question):
+<span class="ln">140</span>        idx = i * num_answer_per_question + j
+<span class="ln">142</span>        response_token_ids = tokens_list[idx][
+<span class="ln">143</span>            len(batch.prompt_token_ids[i]):]</pre></div>
+        <div class="explain"><p>用每个问题自己的 prompt 长度作为切片起点，而不是统一用 <span class="mono">max_prompt_len</span>。</p>
+          <div class="formula">idx=0: tokens[0][3:] → [a,E,·,·,·,·]<br>idx=1: tokens[1][3:] → [b,c,d,e,E,·]<br>idx=2: tokens[2][5:] → [u,E,·,·]<br>idx=3: tokens[3][5:] → [v,w,x,E]</div>
+        </div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">145</span>if pad_token_id in response_token_ids:
+<span class="ln">146</span>    response_token_ids = response_token_ids[
+<span class="ln">147</span>        :response_token_ids.index(pad_token_id)]
+<span class="ln">151</span>response_text = tokenizer.decode(response_token_ids)</pre></div>
+        <div class="explain"><p>在第一个 PAD 处截断，EOS 保留在回答中，然后 token IDs 解码成文本。</p>
+          <div class="formula">Q0-A [a,E] &nbsp; Q0-B [b,c,d,e,E]<br>Q1-A [u,E] &nbsp; Q1-B [v,w,x,E]</div></div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">153</span>rewards = reward_function(
+<span class="ln">155</span>    response=response_text,
+<span class="ln">156</span>    numbers=batch.numbers[i],
+<span class="ln">157</span>    target=batch.target[i],
+<span class="ln">158</span>    end_token=end_token)</pre></div>
+        <div class="explain"><p>奖励函数同时看格式与答案。本例后续假设原始奖励为 <span class="mono">[1.1, 0.1, 0.0, 1.1]</span>。</p></div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">160</span>episode = Episode(
+<span class="ln">161</span>    prompt=batch.prompt[i],
+<span class="ln">162</span>    text=batch.prompt[i] + response_text,
+<span class="ln">163</span>    prompt_token_ids=batch.prompt_token_ids[i],
+<span class="ln">164</span>    response_token_ids=response_token_ids,
+<span class="ln">165</span>    is_finished=is_finished_list[idx],
+<span class="ln">166</span>    reward=rewards["reward"],
+<span class="ln">167</span>    reward_info=rewards["reward_info"])
+<span class="ln">169</span>episodes.append(episode)
+<span class="ln">172</span>return episodes</pre></div>
+        <div class="explain"><p>每行张量最终变成一个 Episode 数据类。返回列表长度为 <span class="shape">N×G=4</span>。</p></div>
+      </div>
+      <div class="callout warning"><strong>与当前代码严格一致的细节</strong>Q0-B 的 response 长度是 5，虽然 <span class="mono">max_gen_len=4</span>。原因是 <span class="mono">total_len=max_prompt_len+max_gen_len</span>，短 prompt 可以使用多出的 prompt 长度差。</div>
+    </section>
+
+    <section id="advantages">
+      <h2>4. 奖励变成组内优势</h2>
+      <p class="section-note"><span class="mono">update_policy</span> 的第一步会调用 <span class="mono">normalize_rewards_per_group</span>。同一 prompt 的两个回答互相比较。</p>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">180</span>groups = defaultdict(list)
+<span class="ln">183</span>for episode in episodes:
+<span class="ln">184</span>    groups[tuple(episode.prompt)].append(episode)</pre></div>
+        <div class="explain"><div class="formula">groups[Q0] = [Q0-A(r=1.1), Q0-B(r=0.1)]<br>groups[Q1] = [Q1-A(r=0.0), Q1-B(r=1.1)]</div></div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">187</span>for group in groups.values():
+<span class="ln">190</span>    group_rewards = [item.reward for item in group]
+<span class="ln">192</span>    mean_reward = np.mean(group_rewards)
+<span class="ln">194</span>    std_reward = np.std(group_rewards)</pre></div>
+        <div class="explain">
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">group</th><th>rewards</th><th>mean μ</th><th>std σ (ddof=0)</th></tr>
+            <tr><th class="row">Q0</th><td>[1.1, 0.1]</td><td>0.6</td><td>0.5</td></tr>
+            <tr><th class="row">Q1</th><td>[0.0, 1.1]</td><td>0.55</td><td>0.55</td></tr></table></div>
+        </div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">197</span>for episode in group:
+<span class="ln">199</span>    normalized_reward = (
+<span class="ln">200</span>        episode.reward - mean_reward
+<span class="ln">202</span>    ) / (std_reward + 1e-4)
+<span class="ln">204</span>    episode = dataclasses.replace(
+<span class="ln">206</span>        episode, reward=normalized_reward)
+<span class="ln">208</span>    output.append(episode)
+<span class="ln">209</span>return output</pre></div>
+        <div class="explain"><p>新 Episode 的 <span class="mono">reward</span> 字段被当作优势 A。加 <span class="mono">1e-4</span> 防止标准差为 0 时除零。</p>
+          <div class="formula">A(Q0-A) = (1.1-0.6)/(0.5+1e-4)  ≈ +0.9998<br>A(Q0-B) = (0.1-0.6)/(0.5+1e-4)  ≈ -0.9998<br>A(Q1-A) = (0.0-0.55)/(0.55+1e-4) ≈ -0.9998<br>A(Q1-B) = (1.1-0.55)/(0.55+1e-4) ≈ +0.9998</div>
+        </div>
+      </div>
+    </section>
+
+    <section id="update">
+      <h2>5. update_policy：Episode 到 token log-prob</h2>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">224</span>episodes = normalize_rewards_per_group(episodes)
+<span class="ln">226</span>episodes.sort(key=lambda x:
+<span class="ln">228</span>    len(x.prompt_token_ids) +
+<span class="ln">230</span>    len(x.response_token_ids))
+<span class="ln">232</span>num_target_tokens = sum(
+<span class="ln">233</span>    len(ep.response_token_ids) for ep in episodes)</pre></div>
+        <div class="explain"><p>排序使长度相近的轨迹进入同一微批次，减少 PAD。</p>
+          <div class="formula">before sort: Q0-A(5), Q0-B(8), Q1-A(7), Q1-B(9)<br>after sort:  Q0-A(5), Q1-A(7), Q0-B(8), Q1-B(9)<br>num_target_tokens = 2 + 2 + 5 + 4 = 13</div>
+        </div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">238</span>for i in range(0, len(episodes), micro_batch_size):
+<span class="ln">245</span>    j = min(i + micro_batch_size, len(episodes))
+<span class="ln">247</span>    batch_episodes = episodes[i:j]
+<span class="ln">249</span>    batch_lengths = [len(prompt)+len(response) ...]
+<span class="ln">256</span>    batch_max_length = max(batch_lengths)</pre></div>
+        <div class="explain"><div class="formula">micro-batch 0: i=0, j=2 → [Q0-A, Q1-A], lengths=[5,7], max=7<br>micro-batch 1: i=2, j=4 → [Q0-B, Q1-B], lengths=[8,9], max=9</div></div>
+      </div>
+
+      <h3>微批次 0：构建 batch_token_ids / batch_masks</h3>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">257</span>batch_token_ids = [
+<span class="ln">258</span>    episode.prompt_token_ids
+<span class="ln">259</span>    + episode.response_token_ids
+<span class="ln">260</span>    + [pad_token_id] * (
+<span class="ln">261</span>        batch_max_length - batch_lengths[i])
+<span class="ln">263</span>    for i, episode in enumerate(batch_episodes)]</pre></div>
+        <div class="explain"><p>两条轨迹右侧补齐到 7。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">ids [2,7]</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th></tr>
+            <tr><th class="row">Q0-A</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="g">a</td><td class="e">E</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">Q1-A</th><td class="p">Q0</td><td class="p">Q1</td><td class="p">Q2</td><td class="p">Q3</td><td class="e">E</td><td class="g">u</td><td class="e">E</td></tr></table></div>
+        </div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">266</span>batch_masks = [
+<span class="ln">268</span>    [0] * len(episode.prompt_token_ids)
+<span class="ln">270</span>    + [1] * len(episode.response_token_ids)
+<span class="ln">272</span>    + [0] * (batch_max_length-batch_lengths[i])
+<span class="ln">273</span>    for i, episode in enumerate(batch_episodes)]
+<span class="ln">276</span>batch_advantages = [episode.reward ...]</pre></div>
+        <div class="explain"><p>prompt 和 PAD 不参与目标，只有 response（包括生成的 EOS）为 1。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">mask [2,7]</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>advantage</th></tr>
+            <tr><th class="row">Q0-A</th><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="m">1</td><td class="m">1</td><td class="off">0</td><td class="off">0</td><td>+0.9998</td></tr>
+            <tr><th class="row">Q1-A</th><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="m">1</td><td class="m">1</td><td>-0.9998</td></tr></table></div>
+        </div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">279</span>batch_token_ids = torch.tensor(..., dtype=torch.long)
+<span class="ln">284</span>batch_masks = torch.tensor(..., dtype=torch.bool)
+<span class="ln">289</span>batch_advantages = torch.tensor(
+<span class="ln">290</span>    ..., dtype=torch.float32)</pre></div>
+        <div class="explain"><p>Python list 转成 GPU 张量：<span class="shape">ids Long[2,7]</span> <span class="shape">masks Bool[2,7]</span> <span class="shape">advantages Float[2]</span>。</p></div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">293</span>with torch.autocast(device_type=device.type, dtype=dtype):
+<span class="ln">295</span>    input_token_ids = batch_token_ids[:, :-1]
+<span class="ln">298</span>    target_token_ids = batch_token_ids[:, 1:]
+<span class="ln">299</span>    target_masks = batch_masks[:, 1:]
+<span class="ln">301</span>    logits = model(input_token_ids).logits</pre></div>
+        <div class="explain"><p>自回归的标准右移：位置 t 的输出预测位置 t+1 的 token。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">Q0-A</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th></tr>
+            <tr><th class="row">input</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="g">a</td><td class="e">E</td><td class="d">·</td></tr>
+            <tr><th class="row">target</th><td class="p">P1</td><td class="p">P2</td><td class="g">a</td><td class="e">E</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">target mask</th><td class="off">0</td><td class="off">0</td><td class="m">1</td><td class="m">1</td><td class="off">0</td><td class="off">0</td></tr></table></div>
+          <p><span class="shape">input [2,6]</span> → model → <span class="shape">logits [2,6,V]</span>。mask 也必须去掉第一列，才与 target/logits 的时间维对齐。</p>
+        </div>
+      </div>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">307</span>log_probs = -F.cross_entropy(
+<span class="ln">308</span>    logits.reshape(-1, logits.size(-1)),
+<span class="ln">309</span>    target_token_ids.reshape(-1),
+<span class="ln">310</span>    ignore_index=pad_token_id,
+<span class="ln">311</span>    reduction="none"
+<span class="ln">312</span>).reshape(input_token_ids.shape[0], -1)</pre></div>
+        <div class="explain"><p>此处有两条轨迹，每条有 6 个预测位置。每个位置都有一个长度为 V 的词表 logits 向量。</p>
+          <div class="formula">logits:           [batch=2, time=6, vocab=V]<br>target_token_ids: [batch=2, time=6]<br><br>CE 要求输入: [N, classes] + [N]<br>所以令 N = batch × time = 2 × 6 = 12</div>
+        </div>
+      </div>
+
+      <details open>
+        <summary>第 1 步：看清原始 logits [2,6,V] 与 target [2,6]</summary>
+        <div class="detail-body">
+          <p>下表的每个 <span class="mono">z(r,t)</span> 都不是一个数，而是一个 V 维向量 <span class="mono">[z₀,z₁,...,zᵥ₋₁]</span>。它表示第 r 条轨迹在时间 t 对整个词表的未归一化分数。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">logits [2,6,V]</th><th>t=0</th><th>t=1</th><th>t=2</th><th>t=3</th><th>t=4</th><th>t=5</th></tr>
+            <tr><th class="row">r=0 / Q0-A</th><td>z(0,0)[V]</td><td>z(0,1)[V]</td><td class="g">z(0,2)[V]</td><td class="e">z(0,3)[V]</td><td>z(0,4)[V]</td><td>z(0,5)[V]</td></tr>
+            <tr><th class="row">r=1 / Q1-A</th><td>z(1,0)[V]</td><td>z(1,1)[V]</td><td>z(1,2)[V]</td><td>z(1,3)[V]</td><td class="g">z(1,4)[V]</td><td class="e">z(1,5)[V]</td></tr>
+          </table></div>
+          <p>同一位置的 target 是一个 token ID，它告诉交叉熵应该从该 V 维向量中选哪一类。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">target [2,6]</th><th>t=0</th><th>t=1</th><th>t=2</th><th>t=3</th><th>t=4</th><th>t=5</th></tr>
+            <tr><th class="row">r=0 / Q0-A</th><td class="p">P1</td><td class="p">P2</td><td class="g">a</td><td class="e">E</td><td class="d">·</td><td class="d">·</td></tr>
+            <tr><th class="row">r=1 / Q1-A</th><td class="p">Q1</td><td class="p">Q2</td><td class="p">Q3</td><td class="e">E</td><td class="g">u</td><td class="e">E</td></tr>
+          </table></div>
+          <div class="callout"><strong>位置对齐</strong><span class="mono">z(0,2)</span> 预测 Q0-A 的 token <span class="mono">a</span>；<span class="mono">z(1,4)</span> 预测 Q1-A 的 token <span class="mono">u</span>。这两个位置就是后面 mask=1 的 response 位置。</div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>第 2 步：reshape 把 batch 维和 time 维合并</summary>
+        <div class="detail-body">
+          <div class="flow">
+            <div class="flow-item"><b>logits</b><span class="mono">[2,6,V]</span></div><div class="arrow">→</div>
+            <div class="flow-item"><b>reshape(-1,V)</b><span class="mono">[12,V]</span></div>
+            <div class="arrow">&nbsp;&nbsp;</div>
+            <div class="flow-item"><b>targets</b><span class="mono">[2,6]</span></div><div class="arrow">→</div>
+            <div class="flow-item"><b>reshape(-1)</b><span class="mono">[12]</span></div>
+          </div>
+          <p>展平按行优先展开。展平索引为 <span class="mono">k = r × time_len + t = r × 6 + t</span>。logits 和 target 使用完全相同的顺序，因此不会错位。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">k</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th><th>9</th><th>10</th><th>11</th></tr>
+            <tr><th class="row">(r,t)</th><td>(0,0)</td><td>(0,1)</td><td>(0,2)</td><td>(0,3)</td><td>(0,4)</td><td>(0,5)</td><td>(1,0)</td><td>(1,1)</td><td>(1,2)</td><td>(1,3)</td><td>(1,4)</td><td>(1,5)</td></tr>
+            <tr><th class="row">logits row</th><td>z00[V]</td><td>z01[V]</td><td class="g">z02[V]</td><td class="e">z03[V]</td><td>z04[V]</td><td>z05[V]</td><td>z10[V]</td><td>z11[V]</td><td>z12[V]</td><td>z13[V]</td><td class="g">z14[V]</td><td class="e">z15[V]</td></tr>
+            <tr><th class="row">target[k]</th><td class="p">P1</td><td class="p">P2</td><td class="g">a</td><td class="e">E</td><td class="d">·</td><td class="d">·</td><td class="p">Q1</td><td class="p">Q2</td><td class="p">Q3</td><td class="e">E</td><td class="g">u</td><td class="e">E</td></tr>
+          </table></div>
+          <p><span class="mono">-1</span> 由 PyTorch 自动推断为 12；词表维 V 保持不变。</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>第 3 步：交叉熵如何得到一个 token 的对数概率</summary>
+        <div class="detail-body">
+          <p>以展平后 <span class="mono">k=2</span>为例。它来自 <span class="mono">(r=0,t=2)</span>，目标 token 是 <span class="mono">a</span>。为了画得下，暂时把真实的 V 维词表缩成 5 类。</p>
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">vocab token</th><th>P1</th><th>P2</th><th>a</th><th>u</th><th>E</th></tr>
+            <tr><th class="row">logits z02</th><td>0.2</td><td>1.1</td><td class="g hot">2.4</td><td>0.3</td><td>-0.5</td></tr>
+            <tr><th class="row">softmax prob</th><td>0.071</td><td>0.175</td><td class="g hot">0.641</td><td>0.078</td><td>0.035</td></tr>
+            <tr><th class="row">log probability</th><td>-2.65</td><td>-1.74</td><td class="g hot">-0.45</td><td>-2.55</td><td>-3.35</td></tr>
+          </table></div>
+          <div class="formula">CE(z02, target=a) = -log softmax(z02)[a] = -log(0.641) ≈ 0.45<br><br>log_prob(a) = -CE(z02, a) ≈ -0.45</div>
+          <p>实际代码不必显式构造上表的全部 softmax 概率。<span class="mono">cross_entropy</span> 会用数值稳定的 <span class="mono">log_softmax + NLL</span> 完成等价计算。</p>
+        </div>
+      </details>
+
+      <details open>
+        <summary>第 4 步：reduction="none" 保留 12 个位置</summary>
+        <div class="detail-body">
+          <p>默认交叉熵会对所有位置取平均只返回一个标量。这里必须用 <span class="mono">reduction="none"</span>，因为后面还要乘 response mask 和每条轨迹的优势。</p>
+          <div class="flow">
+            <div class="flow-item"><b>CE result</b><span class="mono">nll [12]<br>nll[k] ≥ 0</span></div><div class="arrow">→</div>
+            <div class="flow-item"><b>unary minus</b><span class="mono">logp_flat [12]<br>logp[k] ≤ 0</span></div><div class="arrow">→</div>
+            <div class="flow-item"><b>reshape(2,-1)</b><span class="mono">log_probs [2,6]</span></div>
+          </div>
+          <div class="formula">flat: [lp00, lp01, lp02, lp03, lp04, lp05, lp10, lp11, lp12, lp13, lp14, lp15]<br><br>reshape 后:<br>[[lp00, lp01, lp02, lp03, lp04, lp05],<br> [lp10, lp11, lp12, lp13, lp14, lp15]]</div>
+        </div>
+      </details>
+
+      <details open>
+        <summary>第 5 步：恢复后的 log_probs 与 target_masks 逐位对齐</summary>
+        <div class="detail-body">
+          <div class="tensor-wrap"><table class="tensor"><tr><th class="row">log_probs [2,6]</th><th>t=0</th><th>t=1</th><th>t=2</th><th>t=3</th><th>t=4</th><th>t=5</th></tr>
+            <tr><th class="row">Q0-A logp</th><td>lp(P1)</td><td>lp(P2)</td><td class="g">lp(a)</td><td class="e">lp(E)</td><td class="d">0*</td><td class="d">0*</td></tr>
+            <tr><th class="row">Q0-A mask</th><td class="off">0</td><td class="off">0</td><td class="m">1</td><td class="m">1</td><td class="off">0</td><td class="off">0</td></tr>
+            <tr><th class="row">Q1-A logp</th><td>lp(Q1)</td><td>lp(Q2)</td><td>lp(Q3)</td><td>lp(E)</td><td class="g">lp(u)</td><td class="e">lp(E)</td></tr>
+            <tr><th class="row">Q1-A mask</th><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="m">1</td><td class="m">1</td></tr>
+          </table></div>
+          <p><span class="mono">0*</span> 表示 target 是 PAD，因为 <span class="mono">ignore_index=pad_token_id</span>，交叉熵在这些位置直接返回 0。prompt 位置虽然也计算了 log-prob，但后面乘 mask=0 后不会进入目标。</p>
+          <div class="formula">Q0-A 真正保留: lp(a) + lp(E)<br>Q1-A 真正保留: lp(u) + lp(E)</div>
+        </div>
+      </details>
+
+      <h3>微批次 1：同样流程，更长的时间维</h3>
+      <div class="panel">
+        <div class="tensor-wrap"><table class="tensor"><tr><th class="row">ids [2,9]</th><th>0</th><th>1</th><th>2</th><th>3</th><th>4</th><th>5</th><th>6</th><th>7</th><th>8</th></tr>
+          <tr><th class="row">Q0-B</th><td class="p">P0</td><td class="p">P1</td><td class="p">P2</td><td class="g">b</td><td class="g">c</td><td class="g">d</td><td class="g">e</td><td class="e">E</td><td class="d">·</td></tr>
+          <tr><th class="row">Q1-B</th><td class="p">Q0</td><td class="p">Q1</td><td class="p">Q2</td><td class="p">Q3</td><td class="e">E</td><td class="g">v</td><td class="g">w</td><td class="g">x</td><td class="e">E</td></tr>
+          <tr><th class="row">mask Q0-B</th><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="off">0</td></tr>
+          <tr><th class="row">mask Q1-B</th><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="off">0</td><td class="m">1</td><td class="m">1</td><td class="m">1</td><td class="m">1</td></tr></table></div>
+        <p>右移后 <span class="shape">input/target/mask [2,8]</span>，模型输出 <span class="shape">logits [2,8,V]</span>，交叉熵输出 <span class="shape">log_probs [2,8]</span>。优势为 <span class="mono">[-0.9998,+0.9998]</span>。</p>
+      </div>
+    </section>
+
+    <section id="gradient">
+      <h2>6. update_policy：目标、梯度累积与更新</h2>
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">315</span>obj = log_probs * batch_advantages[:, None]
+<span class="ln">318</span>obj = (obj * target_masks).sum() / num_target_tokens
+<span class="ln">319</span>loss = -obj
+<span class="ln">321</span>loss.backward()</pre></div>
+        <div class="explain">
+          <p><span class="mono">batch_advantages[:,None]</span> 把 <span class="shape">[2]</span> 变成 <span class="shape">[2,1]</span>，广播乘到每个 token log-prob。正优势提高该回答概率，负优势降低它。</p>
+          <div class="formula">obj_mb0 = ( A_Q0A × Σ logp(Q0-A response)<br>          + A_Q1A × Σ logp(Q1-A response) ) / 13<br><br>obj_mb1 = ( A_Q0B × Σ logp(Q0-B response)<br>          + A_Q1B × Σ logp(Q1-B response) ) / 13</div>
+          <p>两个微批次都除以全局 <span class="mono">num_target_tokens=13</span>，两次 backward 的梯度相加后，等价于整批 token 总目标的梯度。</p>
+        </div>
+      </div>
+
+      <div class="flow">
+        <div class="flow-item"><b>loss_mb0.backward()</b><span class="mono">grad = g0</span></div><div class="arrow">+</div>
+        <div class="flow-item"><b>loss_mb1.backward()</b><span class="mono">grad = g0 + g1</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>clip_grad_norm_</b><span class="mono">∥g∥ ≤ max_norm</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>optimizer.step()</b><span class="mono">θ ← θ - update</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>zero_grad()</b><span class="mono">grad = None</span></div>
+      </div>
+
+      <div class="code-line">
+        <div class="source"><pre><span class="ln">324</span>grad_norm = torch.nn.utils.clip_grad_norm_(
+<span class="ln">325</span>    model.parameters(), max_norm=max_grad_norm)
+<span class="ln">328</span>optimizer.step()
+<span class="ln">330</span>optimizer.zero_grad(set_to_none=True)
+<span class="ln">331</span>return {
+<span class="ln">332</span>    "loss": loss.item(),
+<span class="ln">333</span>    "grad_norm": grad_norm.item()}</pre></div>
+        <div class="explain"><p>先对累积后的全部梯度做范数裁剪，再更新参数，最后清梯度。<span class="mono">clip_grad_norm_</span> 返回裁剪前的总范数。</p><p>当前返回的 <span class="mono">loss</span> 是最后一个微批次的 loss，不是两个微批次之和。</p></div>
+      </div>
+
+      <div class="callout warning"><strong>算法边界</strong>这段更新是“组内标准化优势 + on-policy log-prob 目标”的简化实现。它没有保存 old-policy log-prob，也没有实现标准 GRPO 中的 probability ratio、clip 和 reference-model KL 项。</div>
+    </section>
+
+    <section>
+      <h2>7. 一张图回顾 shape</h2>
+      <div class="flow">
+        <div class="flow-item"><b>MiniBatch</b><span class="mono">2 prompts<br>len 3 / 5</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>rollout tokens</b><span class="mono">[4,9]</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>4 Episodes</b><span class="mono">response len<br>2,5,2,4</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>advantages</b><span class="mono">[+,-,-,+]</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>micro-batch 0</b><span class="mono">ids [2,7]<br>logp [2,6]</span></div><div class="arrow">+</div>
+        <div class="flow-item"><b>micro-batch 1</b><span class="mono">ids [2,9]<br>logp [2,8]</span></div><div class="arrow">→</div>
+        <div class="flow-item"><b>one update</b><span class="mono">13 target tokens</span></div>
+      </div>
+    </section>
+
+    <div class="footer">本页对应 <span class="mono">grpo.py</span> 当前代码行 22-334。示例中的 token 名称是为了可视化而设计的符号，张量 shape 和掩码流转与代码一致。</div>
+  </main>
+</body>
+</html>

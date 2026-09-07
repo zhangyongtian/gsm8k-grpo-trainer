@@ -71,22 +71,18 @@ class GSM8KTasksDataset(Dataset):
 {{ '<|im_start|>assistant\n让我一步一步来解决问题。\n<think>\n' }}
 {% endif %}
 """
-        # 使用聊天模板格式化提示词
-        prompt = self.tokenizer.apply_chat_template(
+        # 使用聊天模板格式化提示词 → 默认返回 List[int]（就是 input_ids）
+        input_ids: List[int] = self.tokenizer.apply_chat_template(
             [
                 {"role": "system", "content": SYSTEM_MESSAGE},
                 {"role": "user", "content": user_message},
             ],
             add_generation_prompt=True,
         )
-        # 将问题切分
+        # 构造训练数据：字符串形式（用于打印/调试） + token_ids 形式（用于喂给模型）
         return {
-            # 问题字符串
-            "prompt": self.tokenizer.decode(
-                prompt["input_ids"],
-                skip_special_tokens=False
-            ),
-            "prompt_token_ids": prompt["input_ids"],  # input_ids
+            "prompt": self.tokenizer.decode(input_ids, skip_special_tokens=False),
+            "prompt_token_ids": input_ids,
         }
 
     @staticmethod
