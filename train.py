@@ -55,7 +55,7 @@ def evaluate(model, tokenizer, device):
 
 def main():
     pretrained_model_path = Path(
-        "./Qwen2.5-0.5B-Instruct/"
+        "./Qwen2.5-1.5B-Instruct/"
     )
     device = torch.device("cuda")
     dtype = torch.bfloat16
