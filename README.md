@@ -94,7 +94,9 @@ uv sync --active --no-upgrade
 
 ```bash
 python -c "import torch, transformers, modelscope, dotenv; print('torch版本:', torch.__version__); print('CUDA可用:', torch.cuda.is_available()); print('CUDA版本:', torch.version.cuda if torch.cuda.is_available() else 'N/A'); print('其余依赖 OK')"
-# 如果 modelscope --version 报 No module named 'pkg_resources'，先跑：uv pip install setuptools
+# 安装 modelscope
+uv pip install modelscope
+
 modelscope --version
 which gsm8k-grpo-train
 ```
