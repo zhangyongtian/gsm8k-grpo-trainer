@@ -11,18 +11,12 @@ dependencies = [
     "tensorboard==2.17.0",
     "python-dotenv==1.0.1",
     "setuptools>=68.0.0",
+    "modelscope==1.16.0",
 ]
-
-[project.scripts]
-gsm8k-grpo-train = "gsm8k_grpo_trainer.train:main"
-gsm8k-grpo-eval  = "gsm8k_grpo_trainer.inference:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
-
-[tool.hatch.build.targets.wheel]
-packages = ["src/gsm8k_grpo_trainer"]
 
 [tool.uv]
 index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"

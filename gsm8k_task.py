@@ -21,7 +21,7 @@ USER_TEMPLATE = (
 
 RESPONSE_PROMPT = "让我一步步来解决这个问题。\n<think>"
 
-DATA_DIR = Path(__file__).resolve().parent
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
 
 def load_jsonl(path: Path) -> List[Dict[str, str]]:
@@ -71,7 +71,7 @@ class GSM8KTasksDataset(Dataset):
 {% endif %}
 """
         # 使用聊天模板格式化提示词
-        prompt = self.tokenizer.apply_chat_template(
+        prompt_token_ids = self.tokenizer.apply_chat_template(
             [
                 {"role": "system", "content": SYSTEM_MESSAGE},
                 {"role": "user", "content": user_message},
@@ -82,10 +82,10 @@ class GSM8KTasksDataset(Dataset):
         return {
             # 问题字符串
             "prompt": self.tokenizer.decode(
-                prompt["input_ids"],
+                prompt_token_ids,
                 skip_special_tokens=False
             ),
-            "prompt_token_ids": prompt["input_ids"],  # input_ids
+            "prompt_token_ids": prompt_token_ids,  # input_ids
         }
 
     @staticmethod
@@ -211,6 +211,6 @@ def reward_function(
 
 if __name__ == "__main__":
     from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained("./Qwen2.5-0.5B-Instruct")
+    tokenizer = AutoTokenizer.from_pretrained("./Qwen2.5-1.5B-Instruct")
     dataset = GSM8KTasksDataset(tokenizer=tokenizer)
     print(next(iter(dataset)))

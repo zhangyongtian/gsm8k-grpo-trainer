@@ -195,7 +195,7 @@ def normalize_rewards_per_group(
             normalized_reward =                \
                 (episode.reward - mean_reward) \
                 /                              \
-                (std_reward + 1e-4)
+                (max(std_reward, 1e-2))
             # reward字段，使用回答的组内优势替换掉奖励
             episode = dataclasses.replace(
                 episode,

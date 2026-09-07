@@ -1,7 +1,12 @@
 import html
+import os
 import time
 from datetime import datetime
 from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv()
 
 import numpy as np
 import torch
@@ -21,7 +26,7 @@ def evaluate(model, tokenizer, device):
         split="test",
         test_size=128,  # 128条测试数据
     )
-    generator = torch.Generator(device=device)
+    generator = torch.Generator(device="cpu")
     # 批次大小减半，我们就可以生成2倍长的轨迹了
     dataloader = DataLoader(
         test_dataset,
@@ -54,20 +59,15 @@ def evaluate(model, tokenizer, device):
 
 
 def main():
-    pretrained_model_path = Path(
-        "./Qwen2.5-0.5B-Instruct/"
-    )
+    pretrained_model_path = Path("./Qwen2.5-1.5B-Instruct/")
     device = torch.device("cuda")
     dtype = torch.bfloat16
-    torch.set_default_device(device)
+    os.environ.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
     torch.random.manual_seed(1337)
-    # 批次大小
-    BATCH_SIZE = 256
-    # 每个批次32个问题
-    NUM_QUESTIONS_PER_BATCH = 32
-    # 每个问题产生8条回答
-    NUM_ANSWERS_PER_QUESTION = \
-        BATCH_SIZE // NUM_QUESTIONS_PER_BATCH
+    NUM_QUESTIONS_PER_BATCH = int(os.getenv("NUM_QUESTIONS_PER_BATCH", "4"))
+    NUM_ANSWERS_PER_QUESTION = int(os.getenv("NUM_ANSWERS_PER_QUESTION", "4"))
+    MICRO_BATCH_SIZE = int(os.getenv("MICRO_BATCH_SIZE", "1"))
+    LR = float(os.getenv("LR", "1e-5"))
 
     current_time = datetime.now().strftime(r"%Y%m%d-%H%M%S")
     tb_writer = SummaryWriter(log_dir=f"./logs/{current_time}")
@@ -78,7 +78,7 @@ def main():
         split="train",
         test_size=128,
     )
-    generator = torch.Generator(device=device)
+    generator = torch.Generator(device="cpu")
     train_dataloader = DataLoader(
         train_dataset,
         shuffle=True,
@@ -89,12 +89,13 @@ def main():
     # 加载模型并设置为训练模式
     model = AutoModelForCausalLM.from_pretrained(
         pretrained_model_path,
-        dtype=torch.bfloat16
-    ).train()
+        torch_dtype=torch.bfloat16,
+        local_files_only=True,
+    ).to(device).train()
 
     optimizer = torch.optim.AdamW(
         model.parameters(),
-        lr=1.0e-5,
+        lr=LR,
         weight_decay=0.0,
         betas=[0.9, 0.999],
     )
@@ -119,7 +120,7 @@ def main():
             model=model,  # 策略模型
             optimizer=optimizer,
             episodes=episodes,  # 256条轨迹
-            micro_batch_size=2,  # 微批次大小为2
+            micro_batch_size=MICRO_BATCH_SIZE,  # 微批次大小
             pad_token_id=tokenizer.pad_token_id,
             max_grad_norm=1.0,  # 梯度裁剪到1.0
             device=device,
