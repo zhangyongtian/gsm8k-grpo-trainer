@@ -6,7 +6,7 @@ from typing import Callable, List
 
 import torch
 
-from data_types import Episode, MiniBatch
+from .data_types import Episode, MiniBatch
 
 # 采集轨迹，也就是回答
 # 根据一个问题，采样多条回答

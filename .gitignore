@@ -1,0 +1,72 @@
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# ===== Virtual Environment =====
+# 项目内（历史命名）
+.venv/
+venv/
+env/
+ENV/
+# 项目同级目录（推荐命名，避免项目内套娃）
+gsm8k-grpo-trainer-venv/
+
+# ===== .env 本地配置（含密钥/路径，个人化配置不入库）=====
+.env
+
+# ===== uv =====
+.uv/
+
+# ===== PyTorch / Modelscope 缓存 =====
+.cache/
+.huggingface/
+.modelscope/
+
+# ===== 项目运行产物 =====
+# TensorBoard 日志
+logs/
+
+# 模型检查点
+ckpt/
+*.pt
+*.pth
+*.safetensors
+*.bin
+
+# 推理评估输出
+output/
+
+# 下载的模型目录（模型体积大，不提交 Git）
+Qwen2.*/
+
+# ===== IDE / Editor =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Jupyter =====
+.ipynb_checkpoints/

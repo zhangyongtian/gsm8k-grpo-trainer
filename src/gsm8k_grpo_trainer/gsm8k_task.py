@@ -6,7 +6,7 @@ from typing import Any, Dict, List, Optional
 
 from torch.utils.data import Dataset
 
-from data_types import MiniBatch
+from .data_types import MiniBatch
 
 SYSTEM_MESSAGE = (
     "你是一个有用的助手。你首先在脑海中思考推理过程，"
@@ -21,7 +21,8 @@ USER_TEMPLATE = (
 
 RESPONSE_PROMPT = "让我一步步来解决这个问题。\n<think>"
 
-DATA_DIR = Path(__file__).resolve().parent
+PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
+DATA_DIR = PROJECT_ROOT / "data"
 
 
 def load_jsonl(path: Path) -> List[Dict[str, str]]:
