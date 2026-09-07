@@ -21,7 +21,7 @@ USER_TEMPLATE = (
 
 RESPONSE_PROMPT = "让我一步步来解决这个问题。\n<think>"
 
-DATA_DIR = Path(__file__).resolve().parent / "data"
+DATA_DIR = Path(__file__).resolve().parent
 
 
 def load_jsonl(path: Path) -> List[Dict[str, str]]:
@@ -211,6 +211,6 @@ def reward_function(
 
 if __name__ == "__main__":
     from transformers import AutoTokenizer
-    tokenizer = AutoTokenizer.from_pretrained("./Qwen2.5-1.5B-Instruct")
+    tokenizer = AutoTokenizer.from_pretrained("./Qwen2.5-0.5B-Instruct")
     dataset = GSM8KTasksDataset(tokenizer=tokenizer)
     print(next(iter(dataset)))
